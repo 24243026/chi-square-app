@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>χ² StatLab — Chi-Square Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+  </script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+
+  <!-- ══════════════ COLLEGE HEADER ══════════════ -->
+  <header class="college-header">
+    <img src="{{ url_for('static', filename='nec-logo.png') }}" alt="NEC Logo" class="college-logo" />
+    <div class="college-info">
+      <div class="college-name">NATIONAL ENGINEERING COLLEGE, K.R.Nagar, Kovilpatti – 628 503.</div>
+      <div class="college-affil">(An Autonomous Institution – Affiliated to Anna University, Chennai)</div>
+    </div>
+  </header>
+
+  <!-- ══════════════ NAVBAR ══════════════ -->
+  <nav class="navbar">
+    <div class="nav-inner">
+      <div class="nav-logo">
+        <span class="logo-icon">χ²</span>
+        <span class="logo-text">StatLab</span>
+      </div>
+      <div class="nav-links">
+        <a href="#analysis"  class="nav-link active" onclick="scrollToSection('analysis', this)">Analysis</a>
+        <a href="#learn"     class="nav-link"         onclick="scrollToSection('learn', this)">Learn</a>
+        <a href="#reftable"  class="nav-link"         onclick="scrollToSection('reftable', this)">Reference Table</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ══════════════ HERO ══════════════ -->
+  <section class="hero">
+    <div class="hero-blobs">
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
+      <div class="blob blob-3"></div>
+    </div>
+    <div class="hero-content">
+      <div class="hero-badge">Statistical Analysis Tool</div>
+      <h1 class="hero-title">Chi-Square <span class="gradient-text">Statistical</span> Analysis</h1>
+      <p class="hero-subtitle">
+        Perform Goodness of Fit and Test of Independence with step-by-step solutions,
+        interactive charts, and professional-grade results.
+      </p>
+      <a href="#analysis" class="hero-btn">Start Analysis ↓</a>
+    </div>
+  </section>
+
+  <!-- ══════════════ ANALYSIS SECTION ══════════════ -->
+  <section id="analysis" class="section">
+    <div class="container">
+
+      <!-- Test Type Tabs -->
+      <div class="tab-group">
+        <button class="tab-btn active" onclick="switchTab('gof', this)">Goodness of Fit</button>
+        <button class="tab-btn"        onclick="switchTab('ind', this)">Test of Independence</button>
+      </div>
+
+      <!-- ── GOODNESS OF FIT FORM ── -->
+      <div id="tab-gof" class="tab-panel active">
+
+        <!-- Upload Card -->
+        <div class="glass-card upload-card">
+          <div class="card-header">
+            <div><h2 class="card-title">📂 Upload File</h2><p class="card-sub">Auto-fill form from your data file</p></div>
+          </div>
+          <div class="upload-zone" id="gof-upload-zone"
+               ondragover="handleDragOver(event,'gof')"
+               ondragleave="handleDragLeave(event,'gof')"
+               ondrop="handleDrop(event,'gof')">
+            <div class="upload-zone-icon">📁</div>
+            <p class="upload-zone-title">Drag & Drop your file here</p>
+            <p class="upload-zone-sub">or click Browse to choose a file</p>
+            <div class="upload-zone-actions">
+              <label class="browse-file-btn">
+                Browse File
+                <input type="file" id="gof-file-input" accept=".csv,.xlsx,.xls,.pdf"
+                       onchange="handleFileSelect(event,'gof')" hidden/>
+              </label>
+              <button class="template-dl-btn" onclick="downloadTemplate('gof')">⬇ Download Template</button>
+            </div>
+            <div class="format-hint">
+              <span class="format-badge">📊 CSV</span>
+              <span class="format-badge">📗 Excel (.xlsx / .xls)</span>
+              <span class="format-badge">📄 PDF</span>
+            </div>
+          </div>
+          <div id="gof-upload-preview" class="upload-preview hidden"></div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Data Entry</h2>
+              <p class="card-sub">Enter comma-separated values for each category</p>
+            </div>
+            <button class="example-btn" onclick="loadGOFExample()">Load Example</button>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Observed Frequencies (O)</label>
+              <textarea id="gof-observed" class="form-textarea" placeholder="e.g., 30, 25, 20, 15, 10"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Expected Frequencies (E)</label>
+              <textarea id="gof-expected" class="form-textarea" placeholder="e.g., 20, 20, 20, 20, 20"></textarea>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="max-width:260px">
+              <label class="form-label">Significance Level (α)</label>
+              <select id="gof-alpha" class="form-select">
+                <option value="0.10">0.10  (90% Confidence)</option>
+                <option value="0.05" selected>0.05  (95% Confidence)</option>
+                <option value="0.01">0.01  (99% Confidence)</option>
+              </select>
+            </div>
+            <button class="run-btn" onclick="runGOF()">
+              <span class="run-icon">▶</span> Run Analysis
+            </button>
+          </div>
+
+          <div id="gof-error" class="error-box hidden"></div>
+        </div>
+      </div>
+
+      <!-- ── TEST OF INDEPENDENCE FORM ── -->
+      <div id="tab-ind" class="tab-panel">
+
+        <!-- Upload Card -->
+        <div class="glass-card upload-card">
+          <div class="card-header">
+            <div><h2 class="card-title">📂 Upload File</h2><p class="card-sub">Auto-fill contingency table from your data file</p></div>
+          </div>
+          <div class="upload-zone" id="ind-upload-zone"
+               ondragover="handleDragOver(event,'ind')"
+               ondragleave="handleDragLeave(event,'ind')"
+               ondrop="handleDrop(event,'ind')">
+            <div class="upload-zone-icon">📁</div>
+            <p class="upload-zone-title">Drag & Drop your file here</p>
+            <p class="upload-zone-sub">or click Browse to choose a file</p>
+            <div class="upload-zone-actions">
+              <label class="browse-file-btn">
+                Browse File
+                <input type="file" id="ind-file-input" accept=".csv,.xlsx,.xls,.pdf"
+                       onchange="handleFileSelect(event,'ind')" hidden/>
+              </label>
+              <button class="template-dl-btn" onclick="downloadTemplate('ind')">⬇ Download Template</button>
+            </div>
+            <div class="format-hint">
+              <span class="format-badge">📊 CSV</span>
+              <span class="format-badge">📗 Excel (.xlsx / .xls)</span>
+              <span class="format-badge">📄 PDF</span>
+            </div>
+          </div>
+          <div id="ind-upload-preview" class="upload-preview hidden"></div>
+        </div>
+
+        <div class="glass-card">
+          <div class="card-header">
+            <div>
+              <h2 class="card-title">Contingency Table</h2>
+              <p class="card-sub">Define table dimensions and enter observed values</p>
+            </div>
+            <button class="example-btn" onclick="loadIndExample()">Load Example</button>
+          </div>
+
+          <div class="form-row" style="align-items:flex-end; gap:16px; margin-bottom:20px">
+            <div class="form-group" style="max-width:120px">
+              <label class="form-label">Rows</label>
+              <input type="number" id="ind-rows" class="form-input" value="2" min="2" max="10" onchange="buildTable()" />
+            </div>
+            <div class="form-group" style="max-width:120px">
+              <label class="form-label">Columns</label>
+              <input type="number" id="ind-cols" class="form-input" value="3" min="2" max="10" onchange="buildTable()" />
+            </div>
+            <button class="secondary-btn" onclick="buildTable()">Rebuild Table</button>
+          </div>
+
+          <div class="table-scroll">
+            <table id="ind-table" class="input-table"></table>
+          </div>
+
+          <div class="form-row" style="margin-top:20px">
+            <div class="form-group" style="max-width:260px">
+              <label class="form-label">Significance Level (α)</label>
+              <select id="ind-alpha" class="form-select">
+                <option value="0.10">0.10  (90% Confidence)</option>
+                <option value="0.05" selected>0.05  (95% Confidence)</option>
+                <option value="0.01">0.01  (99% Confidence)</option>
+              </select>
+            </div>
+            <button class="run-btn" onclick="runInd()">
+              <span class="run-icon">▶</span> Run Analysis
+            </button>
+          </div>
+
+          <div id="ind-error" class="error-box hidden"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════ RESULTS ══════════════ -->
+      <div id="results-section" class="hidden">
+
+        <!-- Decision Banner -->
+        <div id="decision-banner" class="decision-banner"></div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Chi-Square (χ²)</div>
+            <div class="stat-value" id="res-chisq">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Degrees of Freedom</div>
+            <div class="stat-value" id="res-df">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">P-Value</div>
+            <div class="stat-value" id="res-pval">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Critical Value (χ²_crit)</div>
+            <div class="stat-value" id="res-crit">—</div>
+          </div>
+        </div>
+
+        <!-- Interpretation -->
+        <div class="glass-card" id="interpretation-card" style="margin-top:16px;">
+          <p id="res-interpretation" class="interpretation-text"></p>
+        </div>
+
+        <!-- Expected Table (Independence only) -->
+        <div id="expected-table-section" class="glass-card hidden" style="margin-top:16px;">
+          <div class="section-toggle" onclick="toggleSection('expected-table-body','expected-arrow')">
+            <h3 class="section-title">Expected Frequencies Table</h3>
+            <span id="expected-arrow" class="arrow">▼</span>
+          </div>
+          <div id="expected-table-body">
+            <div class="table-scroll" style="margin-top:16px;">
+              <table id="expected-table" class="result-table"></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step-by-Step -->
+        <div class="glass-card" style="margin-top:16px;">
+          <div class="section-toggle" onclick="toggleSection('steps-body','steps-arrow')">
+            <h3 class="section-title">Step-by-Step Solution</h3>
+            <span id="steps-arrow" class="arrow">▼</span>
+          </div>
+          <div id="steps-body">
+            <div class="table-scroll" style="margin-top:16px;">
+              <table id="steps-table" class="result-table"></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+          <div class="glass-card">
+            <h3 class="section-title" style="margin-bottom:16px;">Observed vs Expected</h3>
+            <div id="bar-chart" style="height:320px;"></div>
+          </div>
+          <div class="glass-card">
+            <h3 class="section-title" style="margin-bottom:16px;">Chi-Square Distribution</h3>
+            <div id="dist-chart" style="height:320px;"></div>
+          </div>
+        </div>
+
+        <!-- Export -->
+        <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+          <button class="export-btn" onclick="exportPDF()">⬇ Export as PDF</button>
+        </div>
+
+      </div><!-- /results-section -->
+    </div><!-- /container -->
+  </section>
+
+  <!-- ══════════════ LEARNING MODULE ══════════════ -->
+  <section id="learn" class="section learn-section">
+    <div class="container">
+      <h2 class="section-heading">What is Chi-Square?</h2>
+      <div class="learn-grid">
+
+        <div class="glass-card learn-card">
+          <div class="learn-icon">📖</div>
+          <h3>Definition</h3>
+          <p>The Chi-Square (χ²) test is a statistical hypothesis test used to examine how well observed data matches an expected distribution (Goodness of Fit) or whether two categorical variables are independent (Test of Independence).</p>
+        </div>
+
+        <div class="glass-card learn-card">
+          <div class="learn-icon">🔢</div>
+          <h3>Formula</h3>
+          <div class="formula-box">
+            χ² = Σ (O − E)² / E
+          </div>
+          <p style="margin-top:12px; font-size:13px; color:var(--muted)">
+            <b>O</b> = Observed frequency &nbsp;·&nbsp;
+            <b>E</b> = Expected frequency &nbsp;·&nbsp;
+            <b>Σ</b> = Sum across all categories
+          </p>
+        </div>
+
+        <div class="glass-card learn-card">
+          <div class="learn-icon">📊</div>
+          <h3>Types</h3>
+          <ul class="learn-list">
+            <li><b>Goodness of Fit</b> — Does the observed data follow the expected distribution? (1 row of data, df = n−1)</li>
+            <li><b>Test of Independence</b> — Are two categorical variables associated? (contingency table, df = (r−1)(c−1))</li>
+          </ul>
+        </div>
+
+        <div class="glass-card learn-card">
+          <div class="learn-icon">✅</div>
+          <h3>When to Use</h3>
+          <ul class="learn-list">
+            <li>Data is in the form of counts / frequencies</li>
+            <li>Categories are mutually exclusive</li>
+            <li>Expected frequency in each cell ≥ 5</li>
+            <li>Observations are independent</li>
+          </ul>
+        </div>
+
+        <div class="glass-card learn-card">
+          <div class="learn-icon">⚖️</div>
+          <h3>Decision Rule</h3>
+          <p>If χ²<sub>calc</sub> &gt; χ²<sub>critical</sub> → <b style="color:#f87171">Reject H₀</b></p>
+          <p style="margin-top:8px">If χ²<sub>calc</sub> ≤ χ²<sub>critical</sub> → <b style="color:#4ade80">Fail to Reject H₀</b></p>
+          <p style="margin-top:8px; font-size:13px; color:var(--muted)">Equivalently: if p-value &lt; α → Reject H₀</p>
+        </div>
+
+        <div class="glass-card learn-card">
+          <div class="learn-icon">📐</div>
+          <h3>Degrees of Freedom</h3>
+          <ul class="learn-list">
+            <li><b>Goodness of Fit:</b> df = n − 1 (n = number of categories)</li>
+            <li><b>Independence:</b> df = (r − 1) × (c − 1) (r = rows, c = columns)</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ REFERENCE TABLE ══════════════ -->
+  <section id="reftable" class="section">
+    <div class="container">
+      <h2 class="section-heading">Chi-Square Critical Values Table</h2>
+      <p class="section-sub">Highlighted row and column show the selected df and α from your last analysis.</p>
+      <div class="glass-card" style="padding:0; overflow:hidden;">
+        <div class="table-scroll">
+          <table id="ref-table" class="result-table ref-table">
+            <thead>
+              <tr>
+                <th>df \ α</th>
+                <th data-alpha="0.10">0.10</th>
+                <th data-alpha="0.05">0.05</th>
+                <th data-alpha="0.01">0.01</th>
+              </tr>
+            </thead>
+            <tbody id="ref-table-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ FOOTER ══════════════ -->
+  <footer class="footer">
+    <p style="font-weight:600;color:var(--text);margin-bottom:4px">χ² StatLab &nbsp;·&nbsp; Chi-Square Statistical Analysis Tool</p>
+    <p>Developed by <strong style="color:#a78bfa">S.Sangeetha,Dept of AI&DS</strong> &nbsp;|&nbsp; Course Instructor: <strong style="color:#67e8f9">Dr. J. Naskath</strong>, Associate Professor/AI&DS</p>
+    <p style="margin-top:6px;font-size:.78rem">National Engineering College, Kovilpatti</p>
+  </footer>
+
+  <div id="spinner-overlay" class="spinner-overlay hidden">
+    <div class="spinner"></div>
+    <p>Calculating…</p>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>
